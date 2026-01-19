@@ -69,28 +69,21 @@ const URL_BACKEND = "https://kevin311598.github.io/reporte-fotografico-postes/";
 const fechaHoy = new Date().toISOString().slice(0,10);
 document.getElementById("fecha").innerText = "📅 Fecha: " + fechaHoy;
 
-// ================= GPS =================
+// ================= GPS (UNA SOLA VEZ) =================
 let coords = { lat: "", lon: "" };
 
-function obtenerGPS() {
-  navigator.geolocation.getCurrentPosition(
-    pos => {
-      coords.lat = pos.coords.latitude.toFixed(6);
-      coords.lon = pos.coords.longitude.toFixed(6);
-      document.getElementById("gps").innerText =
-        `📍 GPS: ${coords.lat}, ${coords.lon}`;
-    },
-    () => {
-      document.getElementById("gps").innerText =
-        "❌ GPS no disponible";
-    },
-    { enableHighAccuracy: true }
-  );
-}
-obtenerGPS();
+navigator.geolocation.getCurrentPosition(
+  pos => {
+    coords.lat = pos.coords.latitude.toFixed(6);
+    coords.lon = pos.coords.longitude.toFixed(6);
+    gps.innerText = `📍 GPS: ${coords.lat}, ${coords.lon}`;
+  },
+  () => gps.innerText = "❌ GPS no disponible",
+  { enableHighAccuracy: false, timeout: 5000 }
+);
 
-// ================= MARCA DE AGUA =================
-function procesarImagen(file, texto) {
+// ================= PROCESAR IMAGEN (RÁPIDO) =================
+function procesarImagen(file) {
   return new Promise(resolve => {
     const img = new Image();
     const reader = new FileReader();
@@ -98,7 +91,7 @@ function procesarImagen(file, texto) {
     reader.onload = e => img.src = e.target.result;
 
     img.onload = () => {
-      const MAX = 1600;
+      const MAX = 1280; // CLAVE PARA VELOCIDAD
       let w = img.width;
       let h = img.height;
 
@@ -114,23 +107,21 @@ function procesarImagen(file, texto) {
 
       ctx.drawImage(img, 0, 0, w, h);
 
-      // Fondo para texto
+      // Marca de agua optimizada
       ctx.fillStyle = "rgba(0,0,0,0.6)";
-      ctx.fillRect(0, h - 160, w, 160);
+      ctx.fillRect(0, h - 120, w, 120);
 
-      // Texto
       ctx.fillStyle = "white";
-      ctx.font = "bold 36px Arial";
-      ctx.fillText(`Fecha: ${fechaHoy}`, 20, h - 110);
-      ctx.fillText(`Poste: ${document.getElementById("poste").value}`, 20, h - 70);
-      ctx.fillText(`GPS: ${coords.lat}, ${coords.lon}`, 20, h - 30);
+      ctx.font = "bold 28px Arial";
+      ctx.fillText(`Fecha: ${fechaHoy}`, 20, h - 80);
+      ctx.fillText(`Poste: ${poste.value}`, 20, h - 45);
+      ctx.fillText(`GPS: ${coords.lat}, ${coords.lon}`, 20, h - 10);
 
       canvas.toBlob(blob => {
         const r2 = new FileReader();
-        r2.onloadend = () =>
-          resolve(r2.result.split(",")[1]);
+        r2.onloadend = () => resolve(r2.result.split(",")[1]);
         r2.readAsDataURL(blob);
-      }, "image/jpeg", 0.9);
+      }, "image/jpeg", 0.8); // compresión
     };
 
     reader.readAsDataURL(file);
@@ -144,14 +135,10 @@ async function enviar() {
     return;
   }
 
-  const proyecto = proyectoInput.value;
-  const poste = posteInput.value;
+  const proyectoVal = proyecto.value;
+  const posteVal = poste.value;
 
-  const f1 = foto1.files[0];
-  const f2 = foto2.files[0];
-  const f3 = foto3.files[0];
-
-  if (!proyecto || !poste || !f1 || !f2 || !f3) {
+  if (!proyectoVal || !posteVal || !foto1.files[0] || !foto2.files[0] || !foto3.files[0]) {
     alert("Completa todos los campos y fotos");
     return;
   }
@@ -159,20 +146,20 @@ async function enviar() {
   guardar.disabled = true;
   guardar.innerText = "Subiendo...";
 
-  const foto1b = await procesarImagen(f1);
-  const foto2b = await procesarImagen(f2);
-  const foto3b = await procesarImagen(f3);
+  const f1 = await procesarImagen(foto1.files[0]);
+  const f2 = await procesarImagen(foto2.files[0]);
+  const f3 = await procesarImagen(foto3.files[0]);
 
   await fetch(URL_BACKEND, {
     method: "POST",
     body: JSON.stringify({
-      proyecto,
-      poste,
+      proyecto: proyectoVal,
+      poste: posteVal,
       lat: coords.lat,
       lon: coords.lon,
-      foto1: foto1b,
-      foto2: foto2b,
-      foto3: foto3b
+      foto1: f1,
+      foto2: f2,
+      foto3: f3
     })
   });
 
@@ -182,13 +169,13 @@ async function enviar() {
   guardar.innerText = "💾 Guardar poste";
 }
 
-// ================= NUEVO POSTE =================
+// ================= NUEVO POSTE (INSTANTÁNEO) =================
 function nuevoPoste() {
-  posteInput.value = "";
+  poste.value = "";
   foto1.value = "";
   foto2.value = "";
   foto3.value = "";
-  obtenerGPS();
+  poste.focus();
 }
 </script>
 
