@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reporte Fotográfico Postes</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 15px;
+      background: #f4f4f4;
+    }
+    input, button {
+      width: 100%;
+      margin: 8px 0;
+      padding: 10px;
+      font-size: 16px;
+    }
+    label {
+      font-weight: bold;
+      margin-top: 10px;
+      display: block;
+    }
+    button {
+      background: #2e7d32;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+
+<h2>📸 Reporte Fotográfico</h2>
+
+<input id="proyecto" placeholder="Proyecto" required>
+<input id="poste" placeholder="Número de poste" required>
+
+<label>1️⃣ Número de poste</label>
+<input type="file" id="foto1" accept="image/*" capture="camera" required>
+
+<label>2️⃣ Ferretería del poste</label>
+<input type="file" id="foto2" accept="image/*" capture="camera" required>
+
+<label>3️⃣ Vista panorámica</label>
+<input type="file" id="foto3" accept="image/*" capture="camera" required>
+
+<button onclick="enviar()">Guardar fotos</button>
+
+<script>
+const URL_BACKEND = "https://script.google.com/macros/s/AKfycbyOKCW-75l-eSietCWYI8u2_7tkRZokS1aQP9zPWLBLvTJ1epCdni_Qy1_Pvi04ykW1/exec";
+
+function toBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function enviar() {
+  const proyecto = proyectoInput = document.getElementById("proyecto").value;
+  const poste = document.getElementById("poste").value;
+
+  if (!proyecto || !poste) {
+    alert("Completa proyecto y poste");
+    return;
+  }
+
+  const f1 = document.getElementById("foto1").files[0];
+  const f2 = document.getElementById("foto2").files[0];
+  const f3 = document.getElementById("foto3").files[0];
+
+  if (!f1 || !f2 || !f3) {
+    alert("Debes tomar las 3 fotos");
+    return;
+  }
+
+  const data = {
+    proyecto,
+    poste,
+    foto1: await toBase64(f1),
+    foto2: await toBase64(f2),
+    foto3: await toBase64(f3)
+  };
+
+  fetch(URL_BACKEND, {
+    method: "POST",
+    body: JSON.stringify(data)
+  })
+  .then(() => alert("✅ Fotos guardadas en Drive"))
+  .catch(() => alert("❌ Error al subir"));
+}
+</script>
+
+</body>
+</html>
