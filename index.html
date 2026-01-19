@@ -17,25 +17,14 @@ input, button {
   padding: 12px;
   font-size: 16px;
 }
-label {
-  font-weight: bold;
-}
+label { font-weight: bold; }
 button {
   border: none;
   border-radius: 6px;
 }
-#guardar {
-  background: #2e7d32;
-  color: white;
-}
-#nuevo {
-  background: #0277bd;
-  color: white;
-}
-.info {
-  font-weight: bold;
-  margin: 6px 0;
-}
+#guardar { background: #2e7d32; color: white; }
+#nuevo { background: #0277bd; color: white; }
+.info { font-weight: bold; margin: 6px 0; }
 </style>
 </head>
 
@@ -46,8 +35,8 @@ button {
 <p class="info" id="fecha"></p>
 <p class="info" id="gps">📍 Obteniendo GPS…</p>
 
-<input id="proyecto" placeholder="Proyecto" required>
-<input id="poste" placeholder="Número de poste" required>
+<input id="proyecto" placeholder="Proyecto">
+<input id="poste" placeholder="Número de poste">
 
 <label>1️⃣ Número de poste</label>
 <input type="file" id="foto1" accept="image/*" capture="camera">
@@ -58,31 +47,41 @@ button {
 <label>3️⃣ Vista panorámica</label>
 <input type="file" id="foto3" accept="image/*" capture="camera">
 
-<button id="guardar" onclick="enviar()">💾 Guardar poste</button>
-<button id="nuevo" onclick="nuevoPoste()">➕ Agregar otro poste</button>
+<button id="guardar">💾 Guardar poste</button>
+<button id="nuevo">➕ Agregar otro poste</button>
 
 <script>
 // ================= CONFIG =================
 const URL_BACKEND = "https://kevin311598.github.io/reporte-fotografico-postes/";
 
+// ================= REFERENCIAS =================
+const proyectoInput = document.getElementById("proyecto");
+const posteInput = document.getElementById("poste");
+const foto1Input = document.getElementById("foto1");
+const foto2Input = document.getElementById("foto2");
+const foto3Input = document.getElementById("foto3");
+const guardarBtn = document.getElementById("guardar");
+const nuevoBtn = document.getElementById("nuevo");
+const gpsText = document.getElementById("gps");
+
 // ================= FECHA =================
 const fechaHoy = new Date().toISOString().slice(0,10);
 document.getElementById("fecha").innerText = "📅 Fecha: " + fechaHoy;
 
-// ================= GPS (UNA SOLA VEZ) =================
+// ================= GPS (UNA VEZ) =================
 let coords = { lat: "", lon: "" };
 
 navigator.geolocation.getCurrentPosition(
   pos => {
     coords.lat = pos.coords.latitude.toFixed(6);
     coords.lon = pos.coords.longitude.toFixed(6);
-    gps.innerText = `📍 GPS: ${coords.lat}, ${coords.lon}`;
+    gpsText.innerText = `📍 GPS: ${coords.lat}, ${coords.lon}`;
   },
-  () => gps.innerText = "❌ GPS no disponible",
+  () => gpsText.innerText = "❌ GPS no disponible",
   { enableHighAccuracy: false, timeout: 5000 }
 );
 
-// ================= PROCESAR IMAGEN (RÁPIDO) =================
+// ================= IMAGEN OPTIMIZADA =================
 function procesarImagen(file) {
   return new Promise(resolve => {
     const img = new Image();
@@ -91,7 +90,7 @@ function procesarImagen(file) {
     reader.onload = e => img.src = e.target.result;
 
     img.onload = () => {
-      const MAX = 1280; // CLAVE PARA VELOCIDAD
+      const MAX = 1280;
       let w = img.width;
       let h = img.height;
 
@@ -107,76 +106,77 @@ function procesarImagen(file) {
 
       ctx.drawImage(img, 0, 0, w, h);
 
-      // Marca de agua optimizada
       ctx.fillStyle = "rgba(0,0,0,0.6)";
       ctx.fillRect(0, h - 120, w, 120);
 
       ctx.fillStyle = "white";
       ctx.font = "bold 28px Arial";
       ctx.fillText(`Fecha: ${fechaHoy}`, 20, h - 80);
-      ctx.fillText(`Poste: ${poste.value}`, 20, h - 45);
+      ctx.fillText(`Poste: ${posteInput.value}`, 20, h - 45);
       ctx.fillText(`GPS: ${coords.lat}, ${coords.lon}`, 20, h - 10);
 
       canvas.toBlob(blob => {
         const r2 = new FileReader();
         r2.onloadend = () => resolve(r2.result.split(",")[1]);
         r2.readAsDataURL(blob);
-      }, "image/jpeg", 0.8); // compresión
+      }, "image/jpeg", 0.8);
     };
 
     reader.readAsDataURL(file);
   });
 }
 
-// ================= ENVIAR =================
-async function enviar() {
+// ================= GUARDAR =================
+guardarBtn.onclick = async () => {
   if (!coords.lat) {
     alert("Espera a que el GPS cargue");
     return;
   }
 
-  const proyectoVal = proyecto.value;
-  const posteVal = poste.value;
-
-  if (!proyectoVal || !posteVal || !foto1.files[0] || !foto2.files[0] || !foto3.files[0]) {
-    alert("Completa todos los campos y fotos");
+  if (!proyectoInput.value || !posteInput.value ||
+      !foto1Input.files[0] || !foto2Input.files[0] || !foto3Input.files[0]) {
+    alert("Completa proyecto, poste y las 3 fotos");
     return;
   }
 
-  guardar.disabled = true;
-  guardar.innerText = "Subiendo...";
+  guardarBtn.disabled = true;
+  guardarBtn.innerText = "Subiendo...";
 
-  const f1 = await procesarImagen(foto1.files[0]);
-  const f2 = await procesarImagen(foto2.files[0]);
-  const f3 = await procesarImagen(foto3.files[0]);
+  try {
+    const f1 = await procesarImagen(foto1Input.files[0]);
+    const f2 = await procesarImagen(foto2Input.files[0]);
+    const f3 = await procesarImagen(foto3Input.files[0]);
 
-  await fetch(URL_BACKEND, {
-    method: "POST",
-    body: JSON.stringify({
-      proyecto: proyectoVal,
-      poste: posteVal,
-      lat: coords.lat,
-      lon: coords.lon,
-      foto1: f1,
-      foto2: f2,
-      foto3: f3
-    })
-  });
+    await fetch(URL_BACKEND, {
+      method: "POST",
+      body: JSON.stringify({
+        proyecto: proyectoInput.value,
+        poste: posteInput.value,
+        lat: coords.lat,
+        lon: coords.lon,
+        foto1: f1,
+        foto2: f2,
+        foto3: f3
+      })
+    });
 
-  alert("✅ Poste guardado correctamente");
+    alert("✅ Poste guardado correctamente");
+  } catch (e) {
+    alert("❌ Error al subir");
+  }
 
-  guardar.disabled = false;
-  guardar.innerText = "💾 Guardar poste";
-}
+  guardarBtn.disabled = false;
+  guardarBtn.innerText = "💾 Guardar poste";
+};
 
-// ================= NUEVO POSTE (INSTANTÁNEO) =================
-function nuevoPoste() {
-  poste.value = "";
-  foto1.value = "";
-  foto2.value = "";
-  foto3.value = "";
-  poste.focus();
-}
+// ================= NUEVO POSTE =================
+nuevoBtn.onclick = () => {
+  posteInput.value = "";
+  foto1Input.value = "";
+  foto2Input.value = "";
+  foto3Input.value = "";
+  posteInput.focus();
+};
 </script>
 
 </body>
