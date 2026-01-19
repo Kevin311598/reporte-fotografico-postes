@@ -1,202 +1,194 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reporte Fotográfico Postes</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 15px;
-      background: #f4f4f4;
-    }
-    input, button {
-      width: 100%;
-      margin: 8px 0;
-      padding: 10px;
-      font-size: 16px;
-    }
-    label {
-      font-weight: bold;
-      margin-top: 10px;
-      display: block;
-    }
-    button {
-      background: #2e7d32;
-      color: white;
-      border: none;
-      border-radius: 5px;
-    }
-    #gps, #fecha {
-      margin: 8px 0;
-      font-weight: bold;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reporte Fotográfico Postes</title>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  padding: 15px;
+  background: #f4f4f4;
+}
+input, button {
+  width: 100%;
+  margin: 8px 0;
+  padding: 12px;
+  font-size: 16px;
+}
+label {
+  font-weight: bold;
+}
+button {
+  border: none;
+  border-radius: 6px;
+}
+#guardar {
+  background: #2e7d32;
+  color: white;
+}
+#nuevo {
+  background: #0277bd;
+  color: white;
+}
+.info {
+  font-weight: bold;
+  margin: 6px 0;
+}
+</style>
 </head>
+
 <body>
 
 <h2>📸 Reporte Fotográfico</h2>
 
-<p id="fecha">📅 Fecha:</p>
-<p id="gps">📍 Obteniendo coordenadas...</p>
+<p class="info" id="fecha"></p>
+<p class="info" id="gps">📍 Obteniendo GPS…</p>
 
 <input id="proyecto" placeholder="Proyecto" required>
 <input id="poste" placeholder="Número de poste" required>
 
 <label>1️⃣ Número de poste</label>
-<input type="file" id="foto1" accept="image/*" capture="camera" required>
+<input type="file" id="foto1" accept="image/*" capture="camera">
 
 <label>2️⃣ Ferretería del poste</label>
-<input type="file" id="foto2" accept="image/*" capture="camera" required>
+<input type="file" id="foto2" accept="image/*" capture="camera">
 
 <label>3️⃣ Vista panorámica</label>
-<input type="file" id="foto3" accept="image/*" capture="camera" required>
+<input type="file" id="foto3" accept="image/*" capture="camera">
 
-<button onclick="enviar()">Guardar fotos</button>
+<button id="guardar" onclick="enviar()">💾 Guardar poste</button>
+<button id="nuevo" onclick="nuevoPoste()">➕ Agregar otro poste</button>
 
 <script>
-// ===================== CONFIGURA TU BACKEND =====================
-const URL_BACKEND = "https://kevin311598.github.io/reporte-fotografico-postes/";
+// ================= CONFIG =================
+const URL_BACKEND = "PEGA_AQUI_TU_URL_DE_APPS_SCRIPT";
 
-// ===================== FECHA AUTOMÁTICA =====================
+// ================= FECHA =================
 const fechaHoy = new Date().toISOString().slice(0,10);
 document.getElementById("fecha").innerText = "📅 Fecha: " + fechaHoy;
 
-// ===================== GPS AUTOMÁTICO =====================
-let coords = { lat: null, lon: null };
+// ================= GPS =================
+let coords = { lat: "", lon: "" };
 
 function obtenerGPS() {
-  if (!navigator.geolocation) {
-    alert("Geolocalización no disponible en este navegador.");
-    return;
-  }
-
   navigator.geolocation.getCurrentPosition(
-    (pos) => {
+    pos => {
       coords.lat = pos.coords.latitude.toFixed(6);
       coords.lon = pos.coords.longitude.toFixed(6);
-      document.getElementById("gps").innerText = `📍 Coordenadas: ${coords.lat}, ${coords.lon}`;
+      document.getElementById("gps").innerText =
+        `📍 GPS: ${coords.lat}, ${coords.lon}`;
     },
-    (err) => {
-      alert("Error obteniendo GPS: " + err.message);
+    () => {
+      document.getElementById("gps").innerText =
+        "❌ GPS no disponible";
     },
     { enableHighAccuracy: true }
   );
 }
-window.onload = () => { obtenerGPS(); };
+obtenerGPS();
 
-// ===================== CONVERTIR A BASE64 =====================
-function toBase64(file) {
-  return new Promise((resolve, reject) => {
+// ================= MARCA DE AGUA =================
+function procesarImagen(file, texto) {
+  return new Promise(resolve => {
+    const img = new Image();
     const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = reject;
+
+    reader.onload = e => img.src = e.target.result;
+
+    img.onload = () => {
+      const MAX = 1600;
+      let w = img.width;
+      let h = img.height;
+
+      if (w > MAX) {
+        h *= MAX / w;
+        w = MAX;
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+
+      ctx.drawImage(img, 0, 0, w, h);
+
+      // Fondo para texto
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      ctx.fillRect(0, h - 160, w, 160);
+
+      // Texto
+      ctx.fillStyle = "white";
+      ctx.font = "bold 36px Arial";
+      ctx.fillText(`Fecha: ${fechaHoy}`, 20, h - 110);
+      ctx.fillText(`Poste: ${document.getElementById("poste").value}`, 20, h - 70);
+      ctx.fillText(`GPS: ${coords.lat}, ${coords.lon}`, 20, h - 30);
+
+      canvas.toBlob(blob => {
+        const r2 = new FileReader();
+        r2.onloadend = () =>
+          resolve(r2.result.split(",")[1]);
+        r2.readAsDataURL(blob);
+      }, "image/jpeg", 0.9);
+    };
+
     reader.readAsDataURL(file);
   });
 }
 
-// ===================== MARCA DE AGUA =====================
-function agregarMarcaAgua(file, texto, callback) {
-  const reader = new FileReader();
+// ================= ENVIAR =================
+async function enviar() {
+  if (!coords.lat) {
+    alert("Espera a que el GPS cargue");
+    return;
+  }
 
-  reader.onload = function(e) {
-    const img = new Image();
-    img.onload = function() {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.width;
-      canvas.height = img.height;
+  const proyecto = proyectoInput.value;
+  const poste = posteInput.value;
 
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0);
+  const f1 = foto1.files[0];
+  const f2 = foto2.files[0];
+  const f3 = foto3.files[0];
 
-      ctx.font = "30px Arial";
-      ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
-      ctx.strokeStyle = "rgba(0, 0, 0, 0.7)";
-      ctx.lineWidth = 2;
+  if (!proyecto || !poste || !f1 || !f2 || !f3) {
+    alert("Completa todos los campos y fotos");
+    return;
+  }
 
-      const lines = texto.split('\n');
-      for(let i=0; i<lines.length; i++) {
-        ctx.strokeText(lines[i], 10, 40 + i*35);
-        ctx.fillText(lines[i], 10, 40 + i*35);
-      }
+  guardar.disabled = true;
+  guardar.innerText = "Subiendo...";
 
-      canvas.toBlob(function(blob) {
-        const reader2 = new FileReader();
-        reader2.onloadend = function() {
-          callback(reader2.result.split(',')[1]);
-        };
-        reader2.readAsDataURL(blob);
-      }, "image/jpeg", 0.9);
-    };
-    img.src = e.target.result;
-  };
+  const foto1b = await procesarImagen(f1);
+  const foto2b = await procesarImagen(f2);
+  const foto3b = await procesarImagen(f3);
 
-  reader.readAsDataURL(file);
+  await fetch(URL_BACKEND, {
+    method: "POST",
+    body: JSON.stringify({
+      proyecto,
+      poste,
+      lat: coords.lat,
+      lon: coords.lon,
+      foto1: foto1b,
+      foto2: foto2b,
+      foto3: foto3b
+    })
+  });
+
+  alert("✅ Poste guardado correctamente");
+
+  guardar.disabled = false;
+  guardar.innerText = "💾 Guardar poste";
 }
 
-// ===================== ENVIAR DATOS =====================
-async function enviar() {
-  const boton = document.querySelector("button");
-  boton.disabled = true;
-  boton.innerText = "Subiendo...";
-
-  const proyecto = document.getElementById("proyecto").value;
-  const poste = document.getElementById("poste").value;
-
-  if (!proyecto || !poste) {
-    alert("Completa proyecto y poste");
-    boton.disabled = false;
-    boton.innerText = "Guardar fotos";
-    return;
-  }
-
-  const f1 = document.getElementById("foto1").files[0];
-  const f2 = document.getElementById("foto2").files[0];
-  const f3 = document.getElementById("foto3").files[0];
-
-  if (!f1 || !f2 || !f3) {
-    alert("Debes tomar las 3 fotos");
-    boton.disabled = false;
-    boton.innerText = "Guardar fotos";
-    return;
-  }
-
-  const textoMarca = `Fecha: ${fechaHoy}\nPoste: ${poste}\nGPS: ${coords.lat},${coords.lon}`;
-
-  // Crear fotos con marca de agua
-  const f1_marcada = await new Promise(resolve => agregarMarcaAgua(f1, textoMarca, resolve));
-  const f2_marcada = await new Promise(resolve => agregarMarcaAgua(f2, textoMarca, resolve));
-  const f3_marcada = await new Promise(resolve => agregarMarcaAgua(f3, textoMarca, resolve));
-
-  const data = {
-    proyecto,
-    poste,
-    lat: coords.lat,
-    lon: coords.lon,
-    foto1: f1_marcada,
-    foto2: f2_marcada,
-    foto3: f3_marcada
-  };
-
-  try {
-    await fetch(URL_BACKEND, {
-      method: "POST",
-      body: JSON.stringify(data)
-    });
-
-    alert("✅ Fotos guardadas correctamente");
-    document.getElementById("proyecto").value = "";
-    document.getElementById("poste").value = "";
-    document.getElementById("foto1").value = "";
-    document.getElementById("foto2").value = "";
-    document.getElementById("foto3").value = "";
-    obtenerGPS(); // refresca coordenadas para la siguiente toma
-  } catch {
-    alert("❌ Error al subir");
-  }
-
-  boton.disabled = false;
-  boton.innerText = "Guardar fotos";
+// ================= NUEVO POSTE =================
+function nuevoPoste() {
+  posteInput.value = "";
+  foto1.value = "";
+  foto2.value = "";
+  foto3.value = "";
+  obtenerGPS();
 }
 </script>
 
