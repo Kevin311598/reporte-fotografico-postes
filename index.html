@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reporte Fotográfico Postes</title>
+<title>Reporte Fotográfico Witlink</title>
 
 <style>
 body {
@@ -17,165 +17,152 @@ input, button {
   padding: 12px;
   font-size: 16px;
 }
-label { font-weight: bold; }
 button {
   border: none;
   border-radius: 6px;
 }
-#guardar { background: #2e7d32; color: white; }
-#nuevo { background: #0277bd; color: white; }
-.info { font-weight: bold; margin: 6px 0; }
+#agregarPoste { background:#0277bd; color:white; }
+#guardar { background:#2e7d32; color:white; }
+#volver { background:#555; color:white; }
+
+.card {
+  background:white;
+  padding:15px;
+  border-radius:8px;
+  margin-top:10px;
+}
+
+.hidden { display:none; }
 </style>
 </head>
 
 <body>
 
-<h2>Reporte Fotográfico Diseño Witlink </h2>
+<h2>📷 Reporte Fotográfico – Witlink</h2>
 
-<p class="info" id="fecha"></p>
-<p class="info" id="gps">📍 Obteniendo GPS…</p>
+<p id="fecha"></p>
+<p id="gps">📍 Obteniendo GPS…</p>
 
-<input id="proyecto" placeholder="Proyecto">
-<input id="poste" placeholder="Número de poste">
+<input id="proyecto" placeholder="Nombre del Proyecto">
 
-<label>1️⃣ Poste completo</label>
-<input type="file" id="foto1" accept="image/*" capture="camera">
+<div id="listaPostes" class="card">
+  <h3>📂 Postes</h3>
+  <ul id="postes"></ul>
+  <button id="agregarPoste">➕ Agregar Poste</button>
+</div>
 
-<label>2️⃣ Ferretería del poste</label>
-<input type="file" id="foto2" accept="image/*" capture="camera">
+<div id="formPoste" class="card hidden">
+  <h3 id="tituloPoste"></h3>
 
-<label>3️⃣ Vista panorámica</label>
-<input type="file" id="foto3" accept="image/*" capture="camera">
+  <label>1️⃣ Poste completo</label>
+  <input type="file" id="foto1" accept="image/*" capture="camera">
 
-<button id="guardar">💾 Guardar poste</button>
-<button id="nuevo">➕ Agregar otro poste</button>
+  <label>2️⃣ Ferretería</label>
+  <input type="file" id="foto2" accept="image/*" capture="camera">
+
+  <label>3️⃣ Vista panorámica</label>
+  <input type="file" id="foto3" accept="image/*" capture="camera">
+
+  <button id="guardar">💾 Guardar Poste</button>
+  <button id="volver">⬅ Volver</button>
+</div>
 
 <script>
-// ================= CONFIG =================
 const URL_BACKEND = "https://script.google.com/macros/s/AKfycbyCqRlwuBtExpNRu2yKRFPeT8VSxgMDCpu1p88MtLo9mdqrYsZ-yQELZpYu6u0oSlpO/exec";
 
-// ================= REFERENCIAS =================
-const proyectoInput = document.getElementById("proyecto");
-const posteInput = document.getElementById("poste");
-const foto1Input = document.getElementById("foto1");
-const foto2Input = document.getElementById("foto2");
-const foto3Input = document.getElementById("foto3");
-const guardarBtn = document.getElementById("guardar");
-const nuevoBtn = document.getElementById("nuevo");
-const gpsText = document.getElementById("gps");
-
-// ================= FECHA =================
 const fechaHoy = new Date().toISOString().slice(0,10);
-document.getElementById("fecha").innerText = "📅 Fecha: " + fechaHoy;
+document.getElementById("fecha").innerText = "📅 " + fechaHoy;
 
-// ================= GPS (UNA VEZ) =================
-let coords = { lat: "", lon: "" };
+let coords = {};
+let contadorPoste = 0;
+let posteActual = "";
 
-navigator.geolocation.getCurrentPosition(
-  pos => {
-    coords.lat = pos.coords.latitude.toFixed(6);
-    coords.lon = pos.coords.longitude.toFixed(6);
-    gpsText.innerText = `📍 GPS: ${coords.lat}, ${coords.lon}`;
-  },
-  () => gpsText.innerText = "❌ GPS no disponible",
-  { enableHighAccuracy: false, timeout: 5000 }
-);
+navigator.geolocation.getCurrentPosition(pos=>{
+  coords.lat = pos.coords.latitude.toFixed(6);
+  coords.lon = pos.coords.longitude.toFixed(6);
+  gps.innerText = `📍 ${coords.lat}, ${coords.lon}`;
+});
 
-// ================= IMAGEN OPTIMIZADA =================
-function procesarImagen(file) {
-  return new Promise(resolve => {
+function procesarImagen(file, poste){
+  return new Promise(resolve=>{
     const img = new Image();
     const reader = new FileReader();
 
     reader.onload = e => img.src = e.target.result;
 
-    img.onload = () => {
-      const MAX = 1280;
+    img.onload = ()=>{
+      const MAX = 1024;
       let w = img.width;
       let h = img.height;
+      if(w > MAX){ h *= MAX/w; w = MAX; }
 
-      if (w > MAX) {
-        h *= MAX / w;
-        w = MAX;
-      }
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      const ctx = c.getContext("2d");
+      ctx.drawImage(img,0,0,w,h);
 
-      const canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext("2d");
+      ctx.fillStyle="rgba(0,0,0,0.6)";
+      ctx.fillRect(0,h-90,w,90);
+      ctx.fillStyle="white";
+      ctx.font="20px Arial";
+      ctx.fillText(`Poste: ${poste}`,20,h-55);
+      ctx.fillText(`GPS: ${coords.lat},${coords.lon}`,20,h-25);
 
-      ctx.drawImage(img, 0, 0, w, h);
-
-      ctx.fillStyle = "rgba(0,0,0,0.6)";
-      ctx.fillRect(0, h - 120, w, 120);
-
-      ctx.fillStyle = "white";
-      ctx.font = "bold 28px Arial";
-      ctx.fillText(`Fecha: ${fechaHoy}`, 20, h - 80);
-      ctx.fillText(`Poste: ${posteInput.value}`, 20, h - 45);
-      ctx.fillText(`GPS: ${coords.lat}, ${coords.lon}`, 20, h - 10);
-
-      canvas.toBlob(blob => {
-        const r2 = new FileReader();
-        r2.onloadend = () => resolve(r2.result.split(",")[1]);
-        r2.readAsDataURL(blob);
-      }, "image/jpeg", 0.8);
+      c.toBlob(b=>{
+        const r = new FileReader();
+        r.onloadend = ()=>resolve(r.result.split(",")[1]);
+        r.readAsDataURL(b);
+      },"image/jpeg",0.7);
     };
-
     reader.readAsDataURL(file);
   });
 }
 
-// ================= GUARDAR =================
-guardarBtn.onclick = async () => {
-  if (!coords.lat) {
-    alert("Espera a que el GPS cargue");
-    return;
-  }
-
-  if (!proyectoInput.value || !posteInput.value ||
-      !foto1Input.files[0] || !foto2Input.files[0] || !foto3Input.files[0]) {
-    alert("Completa proyecto, poste y las 3 fotos");
-    return;
-  }
-
-  guardarBtn.disabled = true;
-  guardarBtn.innerText = "Subiendo...";
-
-  try {
-    const f1 = await procesarImagen(foto1Input.files[0]);
-    const f2 = await procesarImagen(foto2Input.files[0]);
-    const f3 = await procesarImagen(foto3Input.files[0]);
-
-    await fetch(URL_BACKEND, {
-      method: "POST",
-      body: JSON.stringify({
-        proyecto: proyectoInput.value,
-        poste: posteInput.value,
-        lat: coords.lat,
-        lon: coords.lon,
-        foto1: f1,
-        foto2: f2,
-        foto3: f3
-      })
-    });
-
-    alert("✅ Poste guardado correctamente");
-  } catch (e) {
-    alert("❌ Error al subir");
-  }
-
-  guardarBtn.disabled = false;
-  guardarBtn.innerText = "💾 Guardar poste";
+agregarPoste.onclick = ()=>{
+  contadorPoste++;
+  posteActual = "Poste " + contadorPoste;
+  tituloPoste.innerText = posteActual;
+  listaPostes.classList.add("hidden");
+  formPoste.classList.remove("hidden");
 };
 
-// ================= NUEVO POSTE =================
-nuevoBtn.onclick = () => {
-  posteInput.value = "";
-  foto1Input.value = "";
-  foto2Input.value = "";
-  foto3Input.value = "";
-  posteInput.focus();
+guardar.onclick = async ()=>{
+  if(!foto1.files[0] || !foto2.files[0] || !foto3.files[0]){
+    alert("Completa las 3 fotos");
+    return;
+  }
+
+  guardar.innerText="Subiendo...";
+  guardar.disabled=true;
+
+  const f1 = await procesarImagen(foto1.files[0], posteActual);
+  const f2 = await procesarImagen(foto2.files[0], posteActual);
+  const f3 = await procesarImagen(foto3.files[0], posteActual);
+
+  await fetch(URL_BACKEND,{
+    method:"POST",
+    body:JSON.stringify({
+      proyecto: proyecto.value,
+      poste: posteActual,
+      lat: coords.lat,
+      lon: coords.lon,
+      foto1:f1,foto2:f2,foto3:f3
+    })
+  });
+
+  const li = document.createElement("li");
+  li.innerText = posteActual + " ✅";
+  postes.appendChild(li);
+
+  volver.click();
+};
+
+volver.onclick = ()=>{
+  foto1.value=foto2.value=foto3.value="";
+  guardar.innerText="💾 Guardar Poste";
+  guardar.disabled=false;
+  formPoste.classList.add("hidden");
+  listaPostes.classList.remove("hidden");
 };
 </script>
 
