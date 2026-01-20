@@ -11,6 +11,19 @@ body {
   padding: 15px;
   background: #f4f4f4;
 }
+
+/* ===== HEADER LOGO ===== */
+.header {
+  text-align: center;
+  margin-bottom: 15px;
+}
+.logo {
+  max-width: 180px;
+  width: 100%;
+  height: auto;
+}
+
+/* ===== INPUTS & BUTTONS ===== */
 input, button {
   width: 100%;
   margin: 8px 0;
@@ -21,22 +34,29 @@ button {
   border: none;
   border-radius: 6px;
 }
+
+/* ===== COLORS ===== */
 #agregarPoste { background:#0277bd; color:white; }
 #guardar { background:#2e7d32; color:white; }
 #volver { background:#555; color:white; }
 
+/* ===== CARDS ===== */
 .card {
   background:white;
   padding:15px;
   border-radius:8px;
   margin-top:10px;
 }
-
 .hidden { display:none; }
 </style>
 </head>
 
 <body>
+
+<!-- ===== LOGO ===== -->
+<div class="header">
+  <img src="https://drive.google.com/file/d/1Qzr0PMX2Fp1388snZ4ix_AoeM8AmuVPH/view?usp=sharing" class="logo" alt="Logo Empresa">
+</div>
 
 <h2>📷 Reporte Fotográfico – Witlink</h2>
 
@@ -45,19 +65,21 @@ button {
 
 <input id="proyecto" placeholder="Nombre del Proyecto">
 
+<!-- ===== LISTA POSTES ===== -->
 <div id="listaPostes" class="card">
   <h3>📂 Postes</h3>
   <ul id="postes"></ul>
   <button id="agregarPoste">➕ Agregar Poste</button>
 </div>
 
+<!-- ===== FORM POSTE ===== -->
 <div id="formPoste" class="card hidden">
   <h3 id="tituloPoste"></h3>
 
   <label>1️⃣ Poste completo</label>
   <input type="file" id="foto1" accept="image/*" capture="camera">
 
-  <label>2️⃣ Ferretería</label>
+  <label>2️⃣ Ferretería del poste</label>
   <input type="file" id="foto2" accept="image/*" capture="camera">
 
   <label>3️⃣ Vista panorámica</label>
@@ -68,21 +90,28 @@ button {
 </div>
 
 <script>
+/* ===== CONFIG ===== */
 const URL_BACKEND = "https://script.google.com/macros/s/AKfycbyCqRlwuBtExpNRu2yKRFPeT8VSxgMDCpu1p88MtLo9mdqrYsZ-yQELZpYu6u0oSlpO/exec";
 
+/* ===== FECHA ===== */
 const fechaHoy = new Date().toISOString().slice(0,10);
-document.getElementById("fecha").innerText = "📅 " + fechaHoy;
+document.getElementById("fecha").innerText = "📅 Fecha: " + fechaHoy;
 
+/* ===== GPS ===== */
 let coords = {};
-let contadorPoste = 0;
-let posteActual = "";
-
 navigator.geolocation.getCurrentPosition(pos=>{
   coords.lat = pos.coords.latitude.toFixed(6);
   coords.lon = pos.coords.longitude.toFixed(6);
-  gps.innerText = `📍 ${coords.lat}, ${coords.lon}`;
+  gps.innerText = `📍 GPS: ${coords.lat}, ${coords.lon}`;
+},()=>{
+  gps.innerText = "❌ GPS no disponible";
 });
 
+/* ===== VARIABLES ===== */
+let contadorPoste = 0;
+let posteActual = "";
+
+/* ===== OPTIMIZAR IMAGEN ===== */
 function procesarImagen(file, poste){
   return new Promise(resolve=>{
     const img = new Image();
@@ -94,31 +123,43 @@ function procesarImagen(file, poste){
       const MAX = 1024;
       let w = img.width;
       let h = img.height;
-      if(w > MAX){ h *= MAX/w; w = MAX; }
+      if(w > MAX){
+        h *= MAX/w;
+        w = MAX;
+      }
 
-      const c = document.createElement("canvas");
-      c.width = w; c.height = h;
-      const ctx = c.getContext("2d");
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
       ctx.drawImage(img,0,0,w,h);
 
+      /* ===== MARCA DE AGUA ===== */
       ctx.fillStyle="rgba(0,0,0,0.6)";
       ctx.fillRect(0,h-90,w,90);
       ctx.fillStyle="white";
       ctx.font="20px Arial";
       ctx.fillText(`Poste: ${poste}`,20,h-55);
-      ctx.fillText(`GPS: ${coords.lat},${coords.lon}`,20,h-25);
+      ctx.fillText(`Fecha: ${fechaHoy}`,20,h-30);
+      ctx.fillText(`GPS: ${coords.lat}, ${coords.lon}`,20,h-8);
 
-      c.toBlob(b=>{
+      canvas.toBlob(b=>{
         const r = new FileReader();
         r.onloadend = ()=>resolve(r.result.split(",")[1]);
         r.readAsDataURL(b);
       },"image/jpeg",0.7);
     };
+
     reader.readAsDataURL(file);
   });
 }
 
+/* ===== AGREGAR POSTE ===== */
 agregarPoste.onclick = ()=>{
+  if(!proyecto.value){
+    alert("Ingrese el proyecto");
+    return;
+  }
   contadorPoste++;
   posteActual = "Poste " + contadorPoste;
   tituloPoste.innerText = posteActual;
@@ -126,37 +167,46 @@ agregarPoste.onclick = ()=>{
   formPoste.classList.remove("hidden");
 };
 
+/* ===== GUARDAR POSTE ===== */
 guardar.onclick = async ()=>{
   if(!foto1.files[0] || !foto2.files[0] || !foto3.files[0]){
-    alert("Completa las 3 fotos");
+    alert("Debe completar las 3 fotos");
     return;
   }
 
-  guardar.innerText="Subiendo...";
+  guardar.innerText="⏳ Subiendo...";
   guardar.disabled=true;
 
-  const f1 = await procesarImagen(foto1.files[0], posteActual);
-  const f2 = await procesarImagen(foto2.files[0], posteActual);
-  const f3 = await procesarImagen(foto3.files[0], posteActual);
+  try{
+    const f1 = await procesarImagen(foto1.files[0], posteActual);
+    const f2 = await procesarImagen(foto2.files[0], posteActual);
+    const f3 = await procesarImagen(foto3.files[0], posteActual);
 
-  await fetch(URL_BACKEND,{
-    method:"POST",
-    body:JSON.stringify({
-      proyecto: proyecto.value,
-      poste: posteActual,
-      lat: coords.lat,
-      lon: coords.lon,
-      foto1:f1,foto2:f2,foto3:f3
-    })
-  });
+    await fetch(URL_BACKEND,{
+      method:"POST",
+      body:JSON.stringify({
+        proyecto: proyecto.value,
+        poste: posteActual,
+        lat: coords.lat,
+        lon: coords.lon,
+        foto1:f1,
+        foto2:f2,
+        foto3:f3
+      })
+    });
 
-  const li = document.createElement("li");
-  li.innerText = posteActual + " ✅";
-  postes.appendChild(li);
+    const li = document.createElement("li");
+    li.innerText = posteActual + " ✅";
+    postes.appendChild(li);
 
-  volver.click();
+    alert("Poste guardado correctamente");
+    volver.click();
+  }catch(e){
+    alert("Error al subir imágenes");
+  }
 };
 
+/* ===== VOLVER ===== */
 volver.onclick = ()=>{
   foto1.value=foto2.value=foto3.value="";
   guardar.innerText="💾 Guardar Poste";
