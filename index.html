@@ -21,17 +21,20 @@ button,input{width:100%;padding:12px;margin:6px 0}
 <body>
 
 <div class="header">
-  <img src="https://drive.google.com/file/d/1Qzr0PMX2Fp1388snZ4ix_AoeM8AmuVPH/view?usp=drive_link" class="logo">
+  <img src="LOGO_URL_AQUI" class="logo">
 </div>
 
 <div id="vistaProyectos" class="card">
   <h3>📁 Proyectos</h3>
   <ul id="listaProyectos"></ul>
+  <input id="nuevoProyecto" placeholder="Nombre del nuevo proyecto">
+  <button onclick="crearProyecto()">➕ Crear Proyecto</button>
 </div>
 
 <div id="vistaPostes" class="card hidden">
   <h3 id="tituloProyecto"></h3>
   <ul id="listaPostes"></ul>
+  <button onclick="nuevoPoste()">➕ Nuevo Poste</button>
   <button onclick="volverProyectos()">⬅ Volver</button>
 </div>
 
@@ -52,10 +55,10 @@ button,input{width:100%;padding:12px;margin:6px 0}
 </div>
 
 <script>
-const URL="https://script.google.com/macros/s/AKfycbwvE5tLLfWAZNEeBBvHJ2PK903CSgWoGjeWdwa017SWKWSAUTEbH1jeL9zAHVF4sSEQ/exec";
+const URL="https://script.google.com/macros/s/AKfycbxsF1e94Bo4ASroKFGYTtj5gRqGEF7EhX5LxR5RUrWs3tto-FSuDVYz5xkaKJSOthn4/exec";
 let proyecto="", poste="";
 
-/* ===== CARGAR PROYECTOS ===== */
+/* ===== PROYECTOS ===== */
 fetch(URL+"?accion=proyectos").then(r=>r.json()).then(d=>{
   d.forEach(p=>{
     let li=document.createElement("li");
@@ -65,7 +68,13 @@ fetch(URL+"?accion=proyectos").then(r=>r.json()).then(d=>{
   });
 });
 
-/* ===== PROYECTO ===== */
+function crearProyecto(){
+  const n=nuevoProyecto.value.trim();
+  if(!n){alert("Ingrese nombre");return;}
+  abrirProyecto(n);
+}
+
+/* ===== POSTES ===== */
 function abrirProyecto(p){
   proyecto=p;
   tituloProyecto.innerText="📂 "+p;
@@ -83,7 +92,11 @@ function abrirProyecto(p){
   });
 }
 
-/* ===== POSTE ===== */
+function nuevoPoste(){
+  poste="Poste "+(listaPostes.children.length+1);
+  editarPoste(poste);
+}
+
 function editarPoste(p){
   poste=p;
   tituloPoste.innerText=p;
@@ -106,7 +119,8 @@ async function guardar(){
       foto3: foto3.files[0] ? await b64(foto3.files[0]) : null
     })
   });
-  alert("Fotos actualizadas");
+  alert("Poste guardado");
+  volverPostes();
 }
 
 /* ===== VOLVER ===== */
