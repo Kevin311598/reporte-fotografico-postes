@@ -6,214 +6,127 @@
 <title>Reporte Fotográfico Witlink</title>
 
 <style>
-body {
-  font-family: Arial, sans-serif;
-  padding: 15px;
-  background: #f4f4f4;
-}
-
-/* ===== HEADER LOGO ===== */
-.header {
-  text-align: center;
-  margin-bottom: 15px;
-}
-.logo {
-  max-width: 180px;
-  width: 100%;
-  height: auto;
-}
-
-/* ===== INPUTS & BUTTONS ===== */
-input, button {
-  width: 100%;
-  margin: 8px 0;
-  padding: 12px;
-  font-size: 16px;
-}
-button {
-  border: none;
-  border-radius: 6px;
-}
-
-/* ===== COLORS ===== */
-#agregarPoste { background:#0277bd; color:white; }
-#guardar { background:#2e7d32; color:white; }
-#volver { background:#555; color:white; }
-
-/* ===== CARDS ===== */
-.card {
-  background:white;
-  padding:15px;
-  border-radius:8px;
-  margin-top:10px;
-}
-.hidden { display:none; }
+body{font-family:Arial;background:#f4f4f4;padding:15px}
+.card{background:#fff;padding:15px;border-radius:8px;margin-top:10px}
+.hidden{display:none}
+li{padding:10px;border-bottom:1px solid #ddd;cursor:pointer}
+li:hover{background:#eee}
+button,input{width:100%;padding:12px;margin:6px 0}
+.preview{width:100%;border-radius:6px;margin:6px 0}
+.logo{max-width:160px}
+.header{text-align:center}
 </style>
 </head>
 
 <body>
 
-<!-- ===== LOGO ===== -->
 <div class="header">
-  <img src="https://drive.google.com/file/d/1Qzr0PMX2Fp1388snZ4ix_AoeM8AmuVPH/view?usp=sharing" class="logo" alt="Logo Empresa">
+  <img src="https://drive.google.com/file/d/1Qzr0PMX2Fp1388snZ4ix_AoeM8AmuVPH/view?usp=drive_link" class="logo">
 </div>
 
-<h2>📷 Reporte Fotográfico – Witlink</h2>
-
-<p id="fecha"></p>
-<p id="gps">📍 Obteniendo GPS…</p>
-
-<input id="proyecto" placeholder="Nombre del Proyecto">
-
-<!-- ===== LISTA POSTES ===== -->
-<div id="listaPostes" class="card">
-  <h3>📂 Postes</h3>
-  <ul id="postes"></ul>
-  <button id="agregarPoste">➕ Agregar Poste</button>
+<div id="vistaProyectos" class="card">
+  <h3>📁 Proyectos</h3>
+  <ul id="listaProyectos"></ul>
 </div>
 
-<!-- ===== FORM POSTE ===== -->
-<div id="formPoste" class="card hidden">
+<div id="vistaPostes" class="card hidden">
+  <h3 id="tituloProyecto"></h3>
+  <ul id="listaPostes"></ul>
+  <button onclick="volverProyectos()">⬅ Volver</button>
+</div>
+
+<div id="vistaEditar" class="card hidden">
   <h3 id="tituloPoste"></h3>
 
-  <label>1️⃣ Poste completo</label>
+  <img id="img1" class="preview">
   <input type="file" id="foto1" accept="image/*" capture="camera">
 
-  <label>2️⃣ Ferretería del poste</label>
+  <img id="img2" class="preview">
   <input type="file" id="foto2" accept="image/*" capture="camera">
 
-  <label>3️⃣ Vista panorámica</label>
+  <img id="img3" class="preview">
   <input type="file" id="foto3" accept="image/*" capture="camera">
 
-  <button id="guardar">💾 Guardar Poste</button>
-  <button id="volver">⬅ Volver</button>
+  <button onclick="guardar()">💾 Guardar cambios</button>
+  <button onclick="volverPostes()">⬅ Volver</button>
 </div>
 
 <script>
-/* ===== CONFIG ===== */
-const URL_BACKEND = "https://script.google.com/macros/s/AKfycbyCqRlwuBtExpNRu2yKRFPeT8VSxgMDCpu1p88MtLo9mdqrYsZ-yQELZpYu6u0oSlpO/exec";
+const URL="https://script.google.com/macros/s/AKfycbwvE5tLLfWAZNEeBBvHJ2PK903CSgWoGjeWdwa017SWKWSAUTEbH1jeL9zAHVF4sSEQ/exec";
+let proyecto="", poste="";
 
-/* ===== FECHA ===== */
-const fechaHoy = new Date().toISOString().slice(0,10);
-document.getElementById("fecha").innerText = "📅 Fecha: " + fechaHoy;
-
-/* ===== GPS ===== */
-let coords = {};
-navigator.geolocation.getCurrentPosition(pos=>{
-  coords.lat = pos.coords.latitude.toFixed(6);
-  coords.lon = pos.coords.longitude.toFixed(6);
-  gps.innerText = `📍 GPS: ${coords.lat}, ${coords.lon}`;
-},()=>{
-  gps.innerText = "❌ GPS no disponible";
+/* ===== CARGAR PROYECTOS ===== */
+fetch(URL+"?accion=proyectos").then(r=>r.json()).then(d=>{
+  d.forEach(p=>{
+    let li=document.createElement("li");
+    li.innerText=p;
+    li.onclick=()=>abrirProyecto(p);
+    listaProyectos.appendChild(li);
+  });
 });
 
-/* ===== VARIABLES ===== */
-let contadorPoste = 0;
-let posteActual = "";
+/* ===== PROYECTO ===== */
+function abrirProyecto(p){
+  proyecto=p;
+  tituloProyecto.innerText="📂 "+p;
+  vistaProyectos.classList.add("hidden");
+  vistaPostes.classList.remove("hidden");
 
-/* ===== OPTIMIZAR IMAGEN ===== */
-function procesarImagen(file, poste){
-  return new Promise(resolve=>{
-    const img = new Image();
-    const reader = new FileReader();
-
-    reader.onload = e => img.src = e.target.result;
-
-    img.onload = ()=>{
-      const MAX = 1024;
-      let w = img.width;
-      let h = img.height;
-      if(w > MAX){
-        h *= MAX/w;
-        w = MAX;
-      }
-
-      const canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img,0,0,w,h);
-
-      /* ===== MARCA DE AGUA ===== */
-      ctx.fillStyle="rgba(0,0,0,0.6)";
-      ctx.fillRect(0,h-90,w,90);
-      ctx.fillStyle="white";
-      ctx.font="20px Arial";
-      ctx.fillText(`Poste: ${poste}`,20,h-55);
-      ctx.fillText(`Fecha: ${fechaHoy}`,20,h-30);
-      ctx.fillText(`GPS: ${coords.lat}, ${coords.lon}`,20,h-8);
-
-      canvas.toBlob(b=>{
-        const r = new FileReader();
-        r.onloadend = ()=>resolve(r.result.split(",")[1]);
-        r.readAsDataURL(b);
-      },"image/jpeg",0.7);
-    };
-
-    reader.readAsDataURL(file);
+  fetch(`${URL}?accion=postes&proyecto=${p}`).then(r=>r.json()).then(d=>{
+    listaPostes.innerHTML="";
+    d.forEach(x=>{
+      let li=document.createElement("li");
+      li.innerText=x;
+      li.onclick=()=>editarPoste(x);
+      listaPostes.appendChild(li);
+    });
   });
 }
 
-/* ===== AGREGAR POSTE ===== */
-agregarPoste.onclick = ()=>{
-  if(!proyecto.value){
-    alert("Ingrese el proyecto");
-    return;
-  }
-  contadorPoste++;
-  posteActual = "Poste " + contadorPoste;
-  tituloPoste.innerText = posteActual;
-  listaPostes.classList.add("hidden");
-  formPoste.classList.remove("hidden");
-};
+/* ===== POSTE ===== */
+function editarPoste(p){
+  poste=p;
+  tituloPoste.innerText=p;
+  vistaPostes.classList.add("hidden");
+  vistaEditar.classList.remove("hidden");
 
-/* ===== GUARDAR POSTE ===== */
-guardar.onclick = async ()=>{
-  if(!foto1.files[0] || !foto2.files[0] || !foto3.files[0]){
-    alert("Debe completar las 3 fotos");
-    return;
-  }
+  img1.src=`${URL}?img=poste.jpg&proyecto=${proyecto}&poste=${poste}`;
+  img2.src=`${URL}?img=ferreteria.jpg&proyecto=${proyecto}&poste=${poste}`;
+  img3.src=`${URL}?img=panoramica.jpg&proyecto=${proyecto}&poste=${poste}`;
+}
 
-  guardar.innerText="⏳ Subiendo...";
-  guardar.disabled=true;
-
-  try{
-    const f1 = await procesarImagen(foto1.files[0], posteActual);
-    const f2 = await procesarImagen(foto2.files[0], posteActual);
-    const f3 = await procesarImagen(foto3.files[0], posteActual);
-
-    await fetch(URL_BACKEND,{
-      method:"POST",
-      body:JSON.stringify({
-        proyecto: proyecto.value,
-        poste: posteActual,
-        lat: coords.lat,
-        lon: coords.lon,
-        foto1:f1,
-        foto2:f2,
-        foto3:f3
-      })
-    });
-
-    const li = document.createElement("li");
-    li.innerText = posteActual + " ✅";
-    postes.appendChild(li);
-
-    alert("Poste guardado correctamente");
-    volver.click();
-  }catch(e){
-    alert("Error al subir imágenes");
-  }
-};
+/* ===== GUARDAR ===== */
+async function guardar(){
+  await fetch(URL,{
+    method:"POST",
+    body:JSON.stringify({
+      proyecto, poste,
+      foto1: foto1.files[0] ? await b64(foto1.files[0]) : null,
+      foto2: foto2.files[0] ? await b64(foto2.files[0]) : null,
+      foto3: foto3.files[0] ? await b64(foto3.files[0]) : null
+    })
+  });
+  alert("Fotos actualizadas");
+}
 
 /* ===== VOLVER ===== */
-volver.onclick = ()=>{
-  foto1.value=foto2.value=foto3.value="";
-  guardar.innerText="💾 Guardar Poste";
-  guardar.disabled=false;
-  formPoste.classList.add("hidden");
-  listaPostes.classList.remove("hidden");
-};
+function volverPostes(){
+  vistaEditar.classList.add("hidden");
+  vistaPostes.classList.remove("hidden");
+}
+function volverProyectos(){
+  vistaPostes.classList.add("hidden");
+  vistaProyectos.classList.remove("hidden");
+}
+
+/* ===== UTIL ===== */
+function b64(f){
+  return new Promise(r=>{
+    let fr=new FileReader();
+    fr.onload=()=>r(fr.result.split(",")[1]);
+    fr.readAsDataURL(f);
+  });
+}
 </script>
 
 </body>
