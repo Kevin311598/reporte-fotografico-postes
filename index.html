@@ -15,6 +15,7 @@ button,input{width:100%;padding:12px;margin:6px 0}
 .preview{width:100%;border-radius:6px;margin:6px 0}
 .logo{max-width:160px}
 .header{text-align:center}
+canvas{display:none}
 </style>
 </head>
 
@@ -42,22 +43,25 @@ button,input{width:100%;padding:12px;margin:6px 0}
   <h3 id="tituloPoste"></h3>
 
   <img id="img1" class="preview">
-  <input type="file" id="foto1" accept="image/*" capture="camera">
+  <input type="file" id="foto1" accept="image/*" capture="camera" onchange="procesar(this,1)">
 
   <img id="img2" class="preview">
-  <input type="file" id="foto2" accept="image/*" capture="camera">
+  <input type="file" id="foto2" accept="image/*" capture="camera" onchange="procesar(this,2)">
 
   <img id="img3" class="preview">
-  <input type="file" id="foto3" accept="image/*" capture="camera">
+  <input type="file" id="foto3" accept="image/*" capture="camera" onchange="procesar(this,3)">
 
   <button onclick="guardar()">💾 Guardar cambios</button>
   <button onclick="volverPostes()">⬅ Volver</button>
 </div>
 
+<canvas id="cv"></canvas>
+
 <script>
-const URL="https://script.google.com/macros/s/AKfycbz0H_efN2TlC9MfBP3VtPFgCbX2PQN93Hq1slioPgc5y0pxtiga_8SoNr8xN-Sin05D/exec";
+const URL="PEGA_AQUI_TU_URL_DEL_SCRIPT";
 let proyecto="", poste="";
 let lat="", lng="", fecha="";
+let imgFinal=[null,null,null];
 
 /* ===== GPS ===== */
 navigator.geolocation.getCurrentPosition(p=>{
@@ -116,24 +120,58 @@ function editarPoste(p){
   img3.src=`${URL}?img=panoramica.jpg&proyecto=${proyecto}&poste=${poste}`;
 }
 
+/* ===== CANVAS ===== */
+async function procesar(input,i){
+  if(!input.files[0])return;
+  const calle=prompt("📌 Nombre de la calle:");
+  const file=input.files[0];
+  const img=new Image();
+  img.src=URL.createObjectURL(file);
+  await img.decode();
+
+  const c=cv;
+  const ctx=c.getContext("2d");
+  c.width=img.width;
+  c.height=img.height;
+  ctx.drawImage(img,0,0);
+
+  ctx.fillStyle="rgba(0,0,0,0.6)";
+  ctx.fillRect(0,c.height-140,c.width,140);
+
+  ctx.fillStyle="#fff";
+  ctx.font="24px Arial";
+  ctx.fillText(`📍 ${lat}, ${lng}`,20,c.height-100);
+  ctx.fillText(`🗓 ${fecha}`,20,c.height-70);
+  ctx.fillText(`📌 ${calle}`,20,c.height-40);
+  ctx.fillText(`🔢 Poste: ${poste}`,20,c.height-10);
+
+  imgFinal[i-1]=await new Promise(r=>c.toBlob(b=>r(b),"image/jpeg",0.8));
+  document.getElementById("img"+i).src=URL.createObjectURL(imgFinal[i-1]);
+}
+
 /* ===== GUARDAR ===== */
 async function guardar(){
-  const calle=prompt("📌 Nombre de la calle:");
   await fetch(URL,{
     method:"POST",
     body:JSON.stringify({
       proyecto, poste,
-      lat, lng, fecha, calle,
-      foto1: foto1.files[0]?await b64(foto1.files[0]):null,
-      foto2: foto2.files[0]?await b64(foto2.files[0]):null,
-      foto3: foto3.files[0]?await b64(foto3.files[0]):null
+      foto1: imgFinal[0]?await b64(imgFinal[0]):null,
+      foto2: imgFinal[1]?await b64(imgFinal[1]):null,
+      foto3: imgFinal[2]?await b64(imgFinal[2]):null
     })
   });
-  alert("✅ Poste guardado con marca de agua");
+  alert("✅ Fotos guardadas con marca visible");
   volverPostes();
 }
 
-/* ===== VOLVER ===== */
+/* ===== UTIL ===== */
+function b64(f){
+  return new Promise(r=>{
+    const fr=new FileReader();
+    fr.onload=()=>r(fr.result.split(",")[1]);
+    fr.readAsDataURL(f);
+  });
+}
 function volverPostes(){
   vistaEditar.classList.add("hidden");
   vistaPostes.classList.remove("hidden");
@@ -141,15 +179,6 @@ function volverPostes(){
 function volverProyectos(){
   vistaPostes.classList.add("hidden");
   vistaProyectos.classList.remove("hidden");
-}
-
-/* ===== UTIL ===== */
-function b64(f){
-  return new Promise(r=>{
-    let fr=new FileReader();
-    fr.onload=()=>r(fr.result.split(",")[1]);
-    fr.readAsDataURL(f);
-  });
 }
 </script>
 
