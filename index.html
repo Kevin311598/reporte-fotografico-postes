@@ -55,8 +55,16 @@ button,input{width:100%;padding:12px;margin:6px 0}
 </div>
 
 <script>
-const URL="https://script.google.com/macros/s/AKfycbxsF1e94Bo4ASroKFGYTtj5gRqGEF7EhX5LxR5RUrWs3tto-FSuDVYz5xkaKJSOthn4/exec";
+const URL="https://script.google.com/macros/s/AKfycbz0H_efN2TlC9MfBP3VtPFgCbX2PQN93Hq1slioPgc5y0pxtiga_8SoNr8xN-Sin05D/exec";
 let proyecto="", poste="";
+let lat="", lng="", fecha="";
+
+/* ===== GPS ===== */
+navigator.geolocation.getCurrentPosition(p=>{
+  lat=p.coords.latitude.toFixed(6);
+  lng=p.coords.longitude.toFixed(6);
+});
+fecha=new Date().toLocaleString();
 
 /* ===== PROYECTOS ===== */
 fetch(URL+"?accion=proyectos").then(r=>r.json()).then(d=>{
@@ -110,16 +118,18 @@ function editarPoste(p){
 
 /* ===== GUARDAR ===== */
 async function guardar(){
+  const calle=prompt("📌 Nombre de la calle:");
   await fetch(URL,{
     method:"POST",
     body:JSON.stringify({
       proyecto, poste,
-      foto1: foto1.files[0] ? await b64(foto1.files[0]) : null,
-      foto2: foto2.files[0] ? await b64(foto2.files[0]) : null,
-      foto3: foto3.files[0] ? await b64(foto3.files[0]) : null
+      lat, lng, fecha, calle,
+      foto1: foto1.files[0]?await b64(foto1.files[0]):null,
+      foto2: foto2.files[0]?await b64(foto2.files[0]):null,
+      foto3: foto3.files[0]?await b64(foto3.files[0]):null
     })
   });
-  alert("Poste guardado");
+  alert("✅ Poste guardado con marca de agua");
   volverPostes();
 }
 
